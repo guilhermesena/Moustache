@@ -5,7 +5,7 @@ run :
 
 moustache : 
 	mkdir -p bin
-	g++ -o bin/moustache src/moustache.cpp
+	g++ -o bin/moustache src/moustache.cpp -std=c++11
 
 
 
