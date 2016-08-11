@@ -23,6 +23,9 @@ using std::ios;
 using std::min;
 using std::priority_queue;
 using std::reverse;
+using std::sort;
+using std::min_element;
+using std::max_element;
 
 template<typename T, double (*distance)( const T&, const T& )>
 class VpTree {
@@ -205,13 +208,14 @@ double dist(const cell &ca, const cell &cb) {
 }
 
 
+
 int main(int argc, char **argv) {
     string cellname, line;
     char genename[100];
     float count;
     size_t ncells = 0, gene = 0, i;
-    time_t start, read_input, vp_tree, dists;
-    time(&start);
+    time_t time_start, time_read_input, time_vp_tree, time_dists;
+    time(&time_start);
 
     cerr << "Counting cells...\n";
     getline(cin,line);
@@ -235,8 +239,8 @@ int main(int argc, char **argv) {
         gene++;
     }    
 
-    time(&read_input);
-    cerr << "Time to read input: " << read_input - start << " seconds\n";
+    time(&time_read_input);
+    cerr << "Time to read input: " << time_read_input - time_start << " seconds\n";
 
     cerr << "total cells: " << cells.size() << "\n";
     cerr << "total genes: " << gene << "\n";
@@ -245,18 +249,44 @@ int main(int argc, char **argv) {
     cerr << "Making VPtree...\n";
     VpTree<cell, dist> vpt = VpTree<cell, dist>();
     vpt.create(&cells);
-    time(&vp_tree);
-    cerr << "Time to build vp tree: " << vp_tree - read_input << " seconds\n";
+    time(&time_vp_tree);
+    cerr << "Time to build vp tree: " << time_vp_tree - time_read_input << " seconds\n";
     for (int i = 0; i < min((size_t)20, ncells); i++) cells[i].print();
 
     cerr << "Computing 4th distances...\n";
-    for (int i = 0; i < min(ncells,(size_t)500); i++) {
+
+    vector<double> dists;
+
+    for (int i = 0; i < ncells; i++) {
         vector<cell> res;
         vector<double> dst;
-        vpt.search(cells[i], 6, &res, &dst);
-        cout << dst[4] << " ";
+        vpt.search(cells[i], 5, &res, &dst);
+        dists.push_back(dst[4]);
     }
-    time(&dists);
-    cerr << "Time to compute distances: " << dists - vp_tree << " seconds \n";
+
+    sort(dists.begin(), dists.end());
+    int mn = *min_element(dists.begin(), dists.end());
+    int mx = *max_element(dists.begin(), dists.end());
+
+    double threshold = -1.0;
+    size_t ind_threshold = -1;
+    for(int j = 1; j < ncells; j++) {
+        if(dists[j] - dists[j-1] >= 2*(mx - mn)/((double)ncells)){
+            threshold = dists[j-1];
+            ind_threshold = j-1;
+            break;
+        }
+    }
+
+    if(threshold == -1) {
+        cerr << "Fail: couldnt find distance threshold\n";
+        return 1;
+    } else {
+        cerr << "Distance threshold: " << threshold << " corresponding to index " << ind_threshold << "\n";
+        cerr << 100*(ncells - ind_threshold)/ncells << "\% of cells are noise\n";
+    }
+
+    time(&time_dists);
+    cerr << "Time to compute distances: " << time_dists - time_vp_tree << " seconds \n";
 }
 
