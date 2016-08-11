@@ -1,7 +1,7 @@
 all : moustache
 
 run : 
-	if [ -f bin/moustache ] && [ -f in/${FILE} ]; then ./bin/moustache <in/${FILE}; fi
+	if [ -f bin/moustache ] && [ -f ${f} ]; then mkdir -p out; ./bin/moustache <${f} >out/`basename $f`; fi
 
 moustache : 
 	mkdir -p bin
