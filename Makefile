@@ -5,7 +5,9 @@ run :
 
 moustache : 
 	mkdir -p bin
-	g++ -o bin/moustache src/moustache.cpp -std=c++11
+	g++ -c src/*.cpp -std=c++11
+	g++ -o moustache moustache.o cellset.o cell.o
+	rm *.o
 
 
 
