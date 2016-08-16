@@ -9,7 +9,7 @@ using std::vector;
 using std::priority_queue;
 
 // VP tree data structure for fast retrieval of nearest neighbors
-template<typename T, double (*distance)(const T&, const T&)>
+template<typename T, double (*distance)(T, T)>
 class VpTree {
 public:
 

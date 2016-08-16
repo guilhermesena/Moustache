@@ -6,6 +6,9 @@
 using std::cerr;
 using std::cin;
 
+//Remove to disable verbose
+#define DEBUG true
+
 int main(int argc, char **argv) {
 	time_t time_start, time_read_input, time_vp_tree, time_dists;
 	cerr << "Program starded. Reading input...\n";
@@ -21,22 +24,25 @@ int main(int argc, char **argv) {
 			<< " seconds\n";
 
 	//VP tree construction
-	cerr << "Making VPtree...\n";
+	cerr << "Creating VPtree...\n";
 	cs.CreateVpTree();
 	time(&time_vp_tree);
 	cerr << "Time to build vp tree: " << time_vp_tree - time_read_input
 			<< " seconds\n";
 
-	//Finding optimal distance for dbscan
-	cerr << "Computing 4th distances...\n";
+	//Create KNN graph
+	cerr << "Creating kNN graph...\n";
 	size_t ind_threshold;
-	double threshold = cs.GetDistanceThreshold(&ind_threshold);
+	cs.BuildNNGraph(20, true, &ind_threshold);
 	time(&time_dists);
 	cerr << "Time to compute distances: " << time_dists - time_vp_tree
 			<< " seconds \n";
 
-	if (threshold == -1.0)
-		return EXIT_FAILURE;
+	//Denoise
+	cerr << "Estimating true count for reads\n";
+	cs.EstimateReads();
+
+	cerr << "Done!" << endl;
 	return EXIT_SUCCESS;
 }
 

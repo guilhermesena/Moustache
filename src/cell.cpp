@@ -7,7 +7,12 @@ using std::min;
 // nonzero coordinates, cluster index, name and index
 Cell::Cell(string _name, size_t _index) : name(_name), index(_index) {}
 
-void Cell::insert(int indv, double valv) {
+void Cell::InsertEdge(Cell *_adj, double _adj_dist) {
+	adj.push_back(_adj);
+	adj_dist.push_back(_adj_dist);
+}
+
+void Cell::InsertGene(int indv, double valv) {
 	ind.push_back(indv);
 	val.push_back(valv);
 }
