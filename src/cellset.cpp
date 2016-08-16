@@ -9,7 +9,8 @@ using std::cout;
 using std::string;
 using std::istringstream;
 
-CellSet::CellSet() {
+CellSet::CellSet(size_t _NumNeighbors, bool _ExcludeNoise, istream& _st) :
+		NumNeighbors(_NumNeighbors), ExcludeNoise(_ExcludeNoise), st(_st) {
 	dist_memory.clear();
 }
 CellSet::~CellSet() {
@@ -21,7 +22,7 @@ CellSet::~CellSet() {
 unordered_map<pair<size_t, size_t>, double> CellSet::dist_memory;
 
 //Reads the drop-seq dataset from an istream chosen by the user (ie, stdin)
-void CellSet::ReadFromStream(istream &st) {
+void CellSet::ReadFromStream() {
 	string cellname, line, genename;
 	float count;
 	size_t ncells = 0, gene = 0;
@@ -44,8 +45,6 @@ void CellSet::ReadFromStream(istream &st) {
 
 	cerr << "total cells: " << cells.size() << "\n";
 	cerr << "total genes: " << gene << "\n";
-	for (int i = 0; i < min((size_t) 20, ncells); i++)
-		cells[i]->print();
 }
 
 void CellSet::CreateVpTree() {
@@ -56,8 +55,8 @@ void CellSet::CreateVpTree() {
 
 }
 
-void CellSet::BuildNNGraph(int NumNeighbors, bool ExcludeNoise,
-		size_t *ind_thresh) {
+//Builds edges to
+void CellSet::BuildNNGraph() {
 
 	vector<NNPair> dists;
 	size_t ncells = cells.size();
@@ -66,14 +65,6 @@ void CellSet::BuildNNGraph(int NumNeighbors, bool ExcludeNoise,
 		vector<Cell*> res;
 		vector<double> dst;
 		vpt.search(cells[i], NumNeighbors + 1, &res, &dst);
-
-		/*
-		 cerr << cells[i]->name << " ";
-		 for (size_t d = 0; d < dst.size(); d++)
-		 cerr << dst[d] << " ";
-
-		 cerr << "\n";
-		 */
 
 		for (size_t i = 1; i < NumNeighbors; i++) {
 			cells[i]->InsertEdge(res[i], dst[i]);
@@ -84,63 +75,72 @@ void CellSet::BuildNNGraph(int NumNeighbors, bool ExcludeNoise,
 		}
 	}
 
+	//If we don't need to exclude noise cells, we're done
 	if (ExcludeNoise) {
-		sort(dists.begin(), dists.end());
-		for (int i = 0; i < dists.size(); i++) {
-			cout << dists[i].distance << " ";
-		}
+		cerr << "Removing outlier cells...\n";
+		RemoveOutlierCells(dists);
+	}
+}
 
-		double mn = dists[0].distance, mx = dists[dists.size() - 1].distance;
+//Removes cells whose k-th nearest neighbor is too far
+void CellSet::RemoveOutlierCells(vector<NNPair> &dists) {
+	sort(dists.begin(), dists.end());
+	for (int i = 0; i < dists.size(); i++) {
+		cout << dists[i].distance << " ";
+	}
 
-		//Removes obvious outliers from count
-		for (size_t j = dists.size() - 1;
-				j > 0 && dists[j].distance >= 10.0 * dists[j - 1].distance; j--)
-			mx = dists[j-1].distance;
+	double mn = dists[0].distance, mx = dists[dists.size() - 1].distance;
 
-		double threshold = -1.0;
-		size_t oldcellsize = cells.size();
-		for (size_t j = 3 * ncells / 5; j < ncells; j++) {
-			if (dists[j].distance - dists[j - 1].distance
-					>= 2.0 * (mx - mn) / ((double) ncells)) {
-				threshold = dists[j - 1].distance;
-				if (ind_thresh != NULL)
-					*ind_thresh = j - 1;
+	//Removes obvious outliers from count
+	for (size_t j = dists.size() - 1;
+			j > 0 && dists[j].distance >= 10.0 * dists[j - 1].distance; j--)
+		mx = dists[j - 1].distance;
 
-				//Discard noise cells
-				vector < size_t > discard;
-				for (size_t k = j + 1; k < ncells; k++) {
-					discard.push_back(dists[k].CellIndex);
-				}
+	double threshold = -1.0;
+	size_t oldcellsize = cells.size(), ind_threshold;
 
-				sort(discard.begin(), discard.end());
+	//Assumption: At least 60% of cells are not noise. Look for spike in other 40%
+	for (size_t j = 3 * oldcellsize / 5; j < oldcellsize; j++) {
+		if (dists[j].distance - dists[j - 1].distance
+				>= 2.0 * (mx - mn) / ((double) oldcellsize)) {
+			threshold = dists[j - 1].distance;
+			ind_threshold = j - 1;
 
-				//Use int bc size_t is unsigned!
-				for (int k = discard.size() - 1; k >= 0; k--) {
-					cells.erase(cells.begin() + discard[k]);
-				}
-
-				break;
+			//Discard noise cells
+			vector < size_t > discard;
+			for (size_t k = j + 1; k < oldcellsize; k++) {
+				discard.push_back(dists[k].CellIndex);
 			}
-		}
-		if (threshold == -1.0) {
-			cerr << "No noise cells in the dataset\n";
-		} else {
-			cerr << "Distance threshold: " << threshold
-					<< " corresponding to index " << *ind_thresh << "\n";
-			cerr
-					<< 100.0 * (oldcellsize - int(*ind_thresh))
-							/ ((double) oldcellsize)
-					<< "\% of cells are noise\n";
 
-			cerr << "New graph has " << cells.size() << " cells\n";
+			sort(discard.begin(), discard.end());
+
+			//Use int bc size_t is unsigned!
+			for (int k = discard.size() - 1; k >= 0; k--) {
+				cells.erase(cells.begin() + discard[k]);
+			}
+
+			break;
 		}
+	}
+	if (threshold == -1.0) {
+		cerr << "No noise cells in the dataset\n";
+	} else {
+		cerr << "Distance threshold: " << threshold << "\n";
+		cerr << 100.0 * (oldcellsize - ind_threshold) / ((double) oldcellsize)
+				<< "\% of cells are noise\n";
+
+		cerr << "New graph has " << cells.size() << " cells\n";
 	}
 }
 
 void CellSet::EstimateReads() {
 	for (auto cell : cells) {
-		for (auto neighbor : cell->adj) {
+		cell->AdjustGeneReads();
+	}
+}
 
-		}
+void CellSet::PrintCells() {
+	for (auto c : cells) {
+		c->print();
 	}
 }

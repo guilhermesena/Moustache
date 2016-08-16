@@ -37,17 +37,26 @@ template<typename S, typename T> struct hash<pair<S, T>> {
 //A class that will read and store the cell data
 class CellSet {
 public:
-	CellSet();
+	CellSet(size_t, bool, istream&);
 	~CellSet();
-	void ReadFromStream(istream&);
+	void ReadFromStream();
 	void CreateVpTree();
-	void BuildNNGraph(int NumNeighbors, bool ExcludeNoise, size_t *ind_thresh =
-			NULL);
+	void BuildNNGraph();
 	void EstimateReads();
+	void PrintCells();
+
+	size_t GetNumCells() {
+		return cells.size();
+	}
 
 	static unordered_map<pair<size_t, size_t>, double> dist_memory;
 
 private:
+	size_t NumNeighbors;
+	bool ExcludeNoise;
+	istream &st;
+
+	//Struct to sort cells by k-th nearest neighbor edge value
 	struct NNPair {
 		size_t CellIndex;
 		double distance;
@@ -62,6 +71,8 @@ private:
 	};
 
 	vector<Cell*> cells;
+	void RemoveOutlierCells(vector<NNPair> &);
+	void AdjustGeneReads(Cell*);
 
 	// Static function to calculate euclidean distances between cells
 	static double dist(Cell* ca, Cell* cb) {

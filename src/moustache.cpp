@@ -2,45 +2,46 @@
 
 #include <iostream>
 #include <ctime>
+#include <algorithm>
 
 using std::cerr;
 using std::cin;
+using std::endl;
+using std::min;
 
 //Remove to disable verbose
 #define DEBUG true
 
+
+void RunAndPrintTime(void (CellSet::*f)(), CellSet *cs, string function_name) {
+	time_t start,end;
+	cerr << "Running " << function_name << "...\n";
+	time(&start);
+	(cs->*f)();
+	time(&end);
+	cerr << "Finished " << function_name << "\n";
+	cerr << "Elapsed time: " << end-start << "\n\n";
+}
+
 int main(int argc, char **argv) {
-	time_t time_start, time_read_input, time_vp_tree, time_dists;
-	cerr << "Program starded. Reading input...\n";
-	time(&time_start);
+	cerr << "Program starded. Initializing CellSet object...\n";
 
 	// Initializing CellSet object
-	CellSet cs = CellSet();
+	CellSet cs = CellSet(
+			//Num neighbors for kNN graph
+			min(cs.GetNumCells(), (size_t)20),
 
-	// Read dataset from stdin (change cin to ifstream if necessary)
-	cs.ReadFromStream(cin);
-	time(&time_read_input);
-	cerr << "Time to read input: " << time_read_input - time_start
-			<< " seconds\n";
+			//Exclude cells far away from all others
+			true,
 
-	//VP tree construction
-	cerr << "Creating VPtree...\n";
-	cs.CreateVpTree();
-	time(&time_vp_tree);
-	cerr << "Time to build vp tree: " << time_vp_tree - time_read_input
-			<< " seconds\n";
+			//istream where data comes from
+			cin
+		);
 
-	//Create KNN graph
-	cerr << "Creating kNN graph...\n";
-	size_t ind_threshold;
-	cs.BuildNNGraph(20, true, &ind_threshold);
-	time(&time_dists);
-	cerr << "Time to compute distances: " << time_dists - time_vp_tree
-			<< " seconds \n";
-
-	//Denoise
-	cerr << "Estimating true count for reads\n";
-	cs.EstimateReads();
+	RunAndPrintTime(&CellSet::ReadFromStream, &cs, "read input from stdin");
+	RunAndPrintTime(&CellSet::CreateVpTree, &cs, "create vp tree");
+	RunAndPrintTime(&CellSet::BuildNNGraph, &cs, "build NN graph");
+	RunAndPrintTime(&CellSet::EstimateReads, &cs, "apply median filter");
 
 	cerr << "Done!" << endl;
 	return EXIT_SUCCESS;
