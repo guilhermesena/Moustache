@@ -27,6 +27,9 @@ public:
 	vector<Cell*> adj;
 	vector<double> adj_dist;
 
+	//Store cells that point to it to turn graph undirected
+	vector <Cell*> from;
+
 	//Gene values
 	vector<size_t> ind;
 	vector<double> val;
@@ -38,6 +41,7 @@ public:
 	Cell(string, size_t);
 	void InsertGene(int, double);
 	void InsertEdge(Cell*, double);
-	void AdjustGeneReads();
+	void InsertFrom(Cell*);
+	Cell AdjustGeneReads();
 	void print();
 };
